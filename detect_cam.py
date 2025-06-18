@@ -81,7 +81,7 @@ def draw_label_on_frame(frame, label):
     draw.text((20, 20), label, font=font, fill=(255, 0, 0))
     return np.array(img_pil)
 
-frame_queue = queue.Queue(maxsize=100)
+frame_queue = queue.Queue(maxsize=50)
 result_label = "Đang xử lý..."
 lock = threading.Lock()
 

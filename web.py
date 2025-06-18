@@ -1,5 +1,5 @@
-from fastapi import FastAPI, File, UploadFile
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi import FastAPI, WebSocket
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import numpy as np
@@ -24,32 +24,28 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 async def index():
     return FileResponse("static/index.html")
 
-@app.post("/detect-sign")
-async def detect_sign_api(file: UploadFile = File(...)):
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
     try:
-        contents = await file.read()
-        nparr = np.frombuffer(contents, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        while True:
+            data = await websocket.receive_bytes()
+            np_arr = np.frombuffer(data, np.uint8)
+            frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
-        if img is None:
-            print("Ảnh decode không thành công.")
-            return JSONResponse(content={"label": "Ảnh không hợp lệ", "image": ""})
+            if frame is None:
+                await websocket.send_json({"label": "Ảnh lỗi", "image": ""})
+                continue
 
-        print("Kích thước ảnh nhận được:", img.shape)
+            label = detect_sign_from_frame(frame)
+            frame = draw_label_on_frame(frame, label)
 
-        label = detect_sign_from_frame(img)
-        print("Nhãn dự đoán:", label)
+            _, buffer = cv2.imencode('.jpg', frame)
+            img_base64 = base64.b64encode(buffer).decode('utf-8')
 
-        img = draw_label_on_frame(img, label)
-
-        _, img_encoded = cv2.imencode('.jpg', img)
-        img_base64 = base64.b64encode(img_encoded).decode("utf-8")
-
-        return JSONResponse(content={
-            "label": label or "Không phát hiện",
-            "image": img_base64
-        })
-
+            await websocket.send_json({
+                "label": label,
+                "image": img_base64
+            })
     except Exception as e:
-        print("Lỗi xử lý:", str(e))
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        print("Lỗi WebSocket:", e)
