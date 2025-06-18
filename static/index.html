@@ -140,7 +140,7 @@
             const formData = new FormData();
             formData.append("file", blob, "frame.jpg");
 
-            fetch("https://sign-language-7mzd.onrender.com", {
+            fetch("https://sign-language-7mzd.onrender.com/detect-sign", {
               method: "POST",
               body: formData,
             })
