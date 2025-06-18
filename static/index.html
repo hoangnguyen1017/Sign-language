@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Nhận diện ngôn ngữ ký hiệu</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f1f5f9;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    header {
+      background-color: #1e3a8a;
+      color: white;
+      text-align: center;
+      padding: 20px;
+      font-size: 1.8rem;
+      font-weight: bold;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .main {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 40px 20px;
+    }
+
+    .container {
+      background-color: white;
+      border-radius: 16px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
+      padding: 30px;
+      max-width: 800px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    video, img {
+      width: 100%;
+      max-width: 640px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    #label {
+      font-size: 1.5rem;
+      color: #1e293b;
+      background: #dbeafe;
+      padding: 14px 24px;
+      border-radius: 10px;
+      font-weight: 600;
+      text-align: center;
+      min-width: 240px;
+    }
+
+    p {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #374151;
+    }
+
+    canvas {
+      display: none;
+    }
+
+    .loading::after {
+      content: " ⏳";
+      animation: blink 1s steps(2, start) infinite;
+    }
+
+    @keyframes blink {
+      to { visibility: hidden; }
+    }
+
+    @media (max-width: 768px) {
+      .main {
+        padding: 20px;
+      }
+      .container {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    Nhận diện ngôn ngữ ký hiệu từ Webcam
+  </header>
+
+  <div class="main">
+    <div class="container">
+      <p>Camera đang hoạt động</p>
+      <video id="video" autoplay muted playsinline></video>
+      <canvas id="canvas" width="640" height="480"></canvas>
+      <p>Kết quả nhận diện</p>
+      <div id="label" class="loading">Đang nhận diện...</div>
+      <img id="resultImg" alt="Ảnh kết quả" />
+    </div>
+  </div>
+
+  <script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const label = document.getElementById("label");
+    const resultImg = document.getElementById("resultImg");
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then((stream) => {
+        video.srcObject = stream;
+      })
+      .catch((err) => {
+        console.error("Không thể mở webcam", err);
+        label.textContent = "Không thể mở webcam: " + err.message;
+        label.classList.remove("loading");
+      });
+
+    let lastSent = 0;
+    function processFrame(timestamp) {
+      if (video.readyState === video.HAVE_ENOUGH_DATA && timestamp - lastSent > 800) {
+        lastSent = timestamp;
+
+        const context = canvas.getContext("2d");
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const formData = new FormData();
+            formData.append("file", blob, "frame.jpg");
+
+            fetch("http://127.0.0.1:8000/detect-sign", {
+              method: "POST",
+              body: formData,
+            })
+              .then((res) => res.json())
+              .then((data) => {
+                label.textContent = data.label;
+                label.classList.remove("loading");
+                resultImg.src = "data:image/jpeg;base64," + data.image;
+              })
+              .catch((err) => {
+                console.error("Lỗi khi gửi ảnh:", err);
+                label.textContent = "Lỗi gửi ảnh: " + err.message;
+                label.classList.remove("loading");
+              });
+          }
+        }, "image/jpeg");
+      }
+
+      requestAnimationFrame(processFrame);
+    }
+
+    requestAnimationFrame(processFrame);
+  </script>
+</body>
+</html>
