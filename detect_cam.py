@@ -132,5 +132,5 @@ def run_detection():
             break
     cv2.destroyAllWindows()
 
-if __name__ == "__main__":
-    run_detection()
+# if __name__ == "__main__":
+#     run_detection()

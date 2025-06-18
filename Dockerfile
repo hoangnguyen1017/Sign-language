@@ -1,6 +1,5 @@
 FROM python:3.10-slim
 
-# Cài các thư viện hệ thống tối thiểu để hỗ trợ mediapipe, opencv
 RUN apt-get update && apt-get install -y \
     libgl1 \
     libglib2.0-0 \
