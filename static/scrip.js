@@ -28,3 +28,5 @@ function clearImage() {
     img.src = "";
     document.getElementById("fileInput").value = "";
 }
+
+

@@ -2,6 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>🧠 Nhận diện ngôn ngữ ký hiệu thời gian thực</title>
   <style>
@@ -54,6 +55,7 @@
       border-radius: 12px;
       box-shadow: 0 4px 8px rgba(0,0,0,0.1);
       max-width: 80%;
+      text-align: center;
       white-space: pre-line;
     }
 
@@ -65,6 +67,29 @@
       height: 40px;
       animation: spin 1s linear infinite;
       margin: 20px auto;
+    }
+
+    #history-box {
+      width: 90%;
+      max-width: 600px;
+      background-color: #ffffffdd;
+      padding: 15px 20px;
+      margin-top: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+    }
+
+    #history-box h3 {
+      margin-top: 0;
+      color: #00695c;
+    }
+
+    #history-text {
+      font-size: 1.25rem;
+      font-weight: bold;
+      color: #37474f;
+      word-wrap: break-word;
+      white-space: pre-line;
     }
 
     @keyframes spin {
@@ -86,6 +111,11 @@
   <div id="label">⏳ Đang kết nối...</div>
   <img id="output" alt="Kết quả nhận diện sẽ hiển thị ở đây" />
 
+  <div id="history-box">
+    <h3>📜 Lịch sử dự đoán:</h3>
+    <div id="history-text">—</div>
+  </div>
+
   <script>
     const video = document.getElementById("video");
     const canvas = document.getElementById("canvas");
@@ -93,22 +123,37 @@
     const label = document.getElementById("label");
     const output = document.getElementById("output");
     const spinner = document.getElementById("spinner");
+    const history = document.getElementById("history-text");
 
-    const ws = new WebSocket(`wss://${window.location.host}/ws`);
-
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      label.textContent = "🔤 Kết quả: " + data.label;
-      output.src = "data:image/jpeg;base64," + data.image;
-      spinner.style.display = "none";
-    };
+    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const ws = new WebSocket(`${protocol}://${window.location.host}/ws`);
 
     ws.onopen = () => {
       label.textContent = "✅ Đã kết nối! Đang xử lý ký hiệu...";
     };
 
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      console.log("WS nhận:", data);
+      const newLabel = data.label.trim();
+
+      label.textContent = "🔤 Kết quả: " + newLabel;
+      output.src = "data:image/jpeg;base64," + data.image;
+      spinner.style.display = "none";
+
+      if (data.full_text) {
+        history.textContent = data.full_text;
+      }
+    };
+
     ws.onerror = () => {
       label.textContent = "❌ Lỗi kết nối WebSocket.";
+      spinner.style.display = "none";
+    };
+
+    ws.onclose = () => {
+      label.textContent = "🔌 Kết nối đã đóng.";
+      spinner.style.display = "none";
     };
 
     navigator.mediaDevices.getUserMedia({ video: true })
@@ -122,13 +167,14 @@
       });
 
     function sendFrame() {
+      if (ws.readyState !== WebSocket.OPEN) return;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       canvas.toBlob((blob) => {
-        if (ws.readyState === WebSocket.OPEN) {
-          blob.arrayBuffer().then(buffer => ws.send(buffer));
+        if (ws.readyState === WebSocket.OPEN && blob) {
+          blob.arrayBuffer().then((buffer) => ws.send(buffer));
         }
       }, "image/jpeg", 0.8);
-      setTimeout(sendFrame, 200); // gửi frame mỗi 300ms
+      setTimeout(sendFrame, 200);
     }
   </script>
 </body>

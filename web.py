@@ -6,8 +6,7 @@ import numpy as np
 import cv2
 import base64
 
-from detect_cam import detect_sign_from_frame, draw_label_on_frame
-
+from detect_cam import detect_sign_from_frame, draw_label_on_frame, get_result_text
 app = FastAPI()
 
 app.add_middleware(
@@ -26,6 +25,7 @@ async def index():
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    global result_text
     await websocket.accept()
     try:
         while True:
@@ -34,7 +34,7 @@ async def websocket_endpoint(websocket: WebSocket):
             frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
             if frame is None:
-                await websocket.send_json({"label": "Ảnh lỗi", "image": ""})
+                await websocket.send_json({"label": "Ảnh lỗi", "image": "", "full_text": ""})
                 continue
 
             label = detect_sign_from_frame(frame)
@@ -45,7 +45,8 @@ async def websocket_endpoint(websocket: WebSocket):
 
             await websocket.send_json({
                 "label": label,
-                "image": img_base64
+                "image": img_base64,
+                "full_text": get_result_text() 
             })
     except Exception as e:
         print("Lỗi WebSocket:", e)
