@@ -23,7 +23,11 @@ reverse_replacements = {
 
 # === Font ===
 font_path = "C:/Windows/Fonts/arial.ttf"
-font = ImageFont.truetype(font_path, 32)
+try:
+    font = ImageFont.truetype("arial.ttf", 32)
+except OSError:
+    print("⚠️ Không tìm thấy font 'arial.ttf', dùng font mặc định.")
+    font = ImageFont.load_default()
 
 # === Mediapipe ===
 mp_hands = mp.solutions.hands
